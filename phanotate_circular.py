@@ -1,0 +1,126 @@
+import sys
+import extern
+import tempfile
+import shutil
+import argparse
+from Bio import SeqIO
+from collections import OrderedDict
+
+def get_args():
+    parser = argparse.ArgumentParser(description='Annotate circular phage genomes with PHANOTATE')
+    parser.add_argument('-d', '--working-directory', '--working_directory', action='store', default=None, help='Input working directory [default: TMPDIR]')
+    parser.add_argument('-o', '--output', action='store', default=sys.stdout, help='Output file location in fasta format [default: stdout]')
+    required = parser.add_argument_group('required arguments')
+    required.add_argument('-i', '--input', action='store', required=True, help='Input complete genome sequence file in fasta format')
+
+    return parser
+
+def run_phanotate(infile, outfile):
+    """Runs PHANOTATE on inputted genome fasta file.
+
+    Args:
+        infile (str): input fasta file location of a complete phage genome
+        outfile (str): fasta file destination of output
+
+    Returns:
+        outfile (str): fasta file destination of output
+    """
+    cmd = 'phanotate.py -f fasta -o {} {}'.format(outfile, infile)
+    extern.run(cmd)
+    return outfile
+
+def fasta_shift(infile):
+    """Shifts a fasta sequence to the midpoint position based on length
+
+    Args:
+        infile (str): input fasta file location
+
+    Returns:
+        outfile (str): fasta file destination of output
+        length (int): sequence length of input genome fasta file
+    """
+    record = [record for record in SeqIO.parse(infile, "fasta")][0]
+    length = len(record.seq)
+    shift = int(length/2)-1
+
+    #rearrange
+    record.seq = record.seq[shift:] + record.seq[:shift]
+    outfile = tempfile.mkstemp(suffix='.fa', prefix='shift')[1]
+    SeqIO.write(record, outfile, 'fasta')
+    return outfile, length
+
+def union(fasta1, fasta2, length):
+    """Returns the union of transcripts of two transcript fasta files
+
+    Args:
+        fasta1 (str): input first fasta file location
+        fasta2 (str): input second fasta file location
+        length (int): sequence length of input genome fasta file
+
+    Returns:
+        list: a list of unique transcripts found in both fasta inputs
+    """
+    records = OrderedDict()
+    origin = SeqIO.parse(fasta1, 'fasta')
+    shifted = SeqIO.parse(fasta2, 'fasta')
+    shift = int(length/2)-1
+
+    for record in origin:
+        start = int(record.description.split()[1].strip('[START=]'))
+        stop = int(record.id.split('.')[-1])
+        # disallow sequences within 100bp of edges
+        if (100 < start < length-100) & (100 < stop < length-100):
+            records[record.seq] = record
+
+    for record in shifted:
+        start = int(record.description.split()[1].strip('[START=]'))
+        stop = int(record.id.split('.')[-1])
+        # disallow sequences within 100bp of edges
+        if (100 < start < length-100) & (100 < stop < length-100):
+            if record.seq not in records:
+                # set true start and stop positions
+                new_start = start + shift
+                new_stop = stop + shift
+                # identify if sequence overlaps genome edges
+                overlap = False
+                if new_start > length:
+                    new_start = new_start - length
+                    overlap = True
+                if new_stop > length:
+                    new_stop = new_stop - length
+                    if overlap:
+                        overlap = False
+                    else:
+                        overlap = True
+                # generate fasta header
+                idbuilder = record.id.split('.')
+                descbuilder = record.description.split()
+                idbuilder[-1] = str(new_stop)
+                if overlap:
+                    idbuilder[-1] = idbuilder[-1] + '_join'
+                record.id = record.name = descbuilder[0] = '.'.join(idbuilder)
+                descbuilder[1] = '[START={}]'.format(str(new_start))
+                record.description = ' '.join(descbuilder)
+                records[record.seq] = record
+
+    return list(records.values())
+
+def main():
+    parser = get_args().parse_args()
+    infile = parser.input
+    outfile = parser.output
+    if parser.working_directory == None:
+        tempdir = tempfile.mkdtemp(prefix='phan_circ',dir=tempfile.gettempdir())
+        tempfile.tempdir = tempdir
+    else:
+        tempfile.tempdir = parser.working_directory
+    
+    init_run = run_phanotate(infile, tempfile.mkstemp(suffix='.fa')[1])
+    shift_fasta, length = fasta_shift(infile)
+    shift_run = run_phanotate(shift_fasta, tempfile.mkstemp(suffix='.fa')[1])
+    SeqIO.write(union(init_run, shift_run, length), outfile, 'fasta')
+
+    shutil.rmtree(tempdir)
+
+if __name__ == '__main__':
+    main()
