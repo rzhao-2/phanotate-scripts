@@ -1,0 +1,9 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.6
+  - phanotate>=1.5
+  - trnascan-se # Only needed since phanotate doesn't have this in the recipe
+  - biopython
