@@ -51,6 +51,14 @@ def fasta_shift(infile):
     SeqIO.write(record, outfile, 'fasta')
     return outfile, length
 
+def get_pos(record):
+    start_desc = record.description.split()[1]
+    if start_desc[:7] != '[START=':
+        raise Exception("Invalid start position header.")
+    start = int(record.description.split()[1].strip('[START=]'))
+    stop = int(record.id.split('.')[-1])
+    return start, stop
+
 def union(fasta1, fasta2, length):
     """Returns the union of transcripts of two transcript fasta files
 
@@ -68,42 +76,41 @@ def union(fasta1, fasta2, length):
     shift = int(length/2)-1
 
     for record in origin:
-        start = int(record.description.split()[1].strip('[START=]'))
-        stop = int(record.id.split('.')[-1])
+        start, stop = get_pos(record)
         # disallow sequences within 100bp of edges
         if (100 < start < length-100) & (100 < stop < length-100):
-            records[record.seq] = record
+            overlap = False
+            records[(start, stop, overlap)] = record
 
     for record in shifted:
-        start = int(record.description.split()[1].strip('[START=]'))
-        stop = int(record.id.split('.')[-1])
+        start, stop = get_pos(record)
         # disallow sequences within 100bp of edges
         if (100 < start < length-100) & (100 < stop < length-100):
-            if record.seq not in records:
-                # set true start and stop positions
-                new_start = start + shift
-                new_stop = stop + shift
-                # identify if sequence overlaps genome edges
-                overlap = False
-                if new_start > length:
-                    new_start = new_start - length
-                    overlap = True
-                if new_stop > length:
-                    new_stop = new_stop - length
-                    if overlap:
-                        overlap = False
-                    else:
-                        overlap = True
-                # generate fasta header
-                idbuilder = record.id.split('.')
-                descbuilder = record.description.split()
-                idbuilder[-1] = str(new_stop)
+            # set true start and stop positions
+            new_start = start + shift
+            new_stop = stop + shift
+            # identify if sequence overlaps genome edges
+            overlap = False
+            if new_start > length:
+                new_start = new_start - length
+                overlap = True
+            if new_stop > length:
+                new_stop = new_stop - length
                 if overlap:
-                    idbuilder[-1] = idbuilder[-1] + '_join'
-                record.id = record.name = descbuilder[0] = '.'.join(idbuilder)
-                descbuilder[1] = '[START={}]'.format(str(new_start))
-                record.description = ' '.join(descbuilder)
-                records[record.seq] = record
+                    overlap = False
+                else:
+                    overlap = True
+            # generate fasta header
+            idbuilder = record.id.split('.')
+            descbuilder = record.description.split()
+            idbuilder[-1] = str(new_stop)
+            if overlap:
+                idbuilder[-1] = idbuilder[-1] + '_join'
+            record.id = record.name = descbuilder[0] = '.'.join(idbuilder)
+            descbuilder[1] = '[START={}]'.format(str(new_start))
+            record.description = ' '.join(descbuilder)
+            if (new_start, new_stop, overlap) not in records:
+                records[(new_start, new_stop, overlap)] = record
 
     return list(records.values())
 
