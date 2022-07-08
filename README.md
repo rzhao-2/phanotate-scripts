@@ -18,9 +18,9 @@ cd phanotate-scripts
 conda activate phanotate-scripts
 bin/phanotate_circular -i genome.fa -o transcripts.fa
 ```
-### translate
+### phanotate-translate
 ```
 cd phanotate-scripts
 conda activate phanotate-scripts
-bin/translate -i sequences.fa -o proteins.fa
+bin/phanotate-translate -i sequences.fa -o proteins.fa
 ```
