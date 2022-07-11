@@ -24,7 +24,7 @@ def translate(filepath):
             record.seq = record.seq.translate(table=TRANSLATION_TABLE, cds=True)
         except TranslationError:
             # check if sequence begins with alternative start codon
-            if record.seq[:3] == Seq("GTG") | record.seq[:3] == Seq("TTG"):
+            if record.seq[:3] == Seq("GTG") or record.seq[:3] == Seq("TTG"):
                 record.seq = Seq("M") + record.seq.translate(table=TRANSLATION_TABLE, cds=False, to_stop=True)[1:]
             else:
                 record.seq = record.seq.translate(table=TRANSLATION_TABLE, cds=False, to_stop=True)
