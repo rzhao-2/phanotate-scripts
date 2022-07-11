@@ -12,15 +12,15 @@ conda activate phanotate-scripts
 
 ## Usage
 
-### phanotate-circular
+### phanotate_circular
 ```
 cd phanotate-scripts
 conda activate phanotate-scripts
 bin/phanotate_circular -i genome.fa -o transcripts.fa
 ```
-### phanotate-translate
+### phanotate_translate
 ```
 cd phanotate-scripts
 conda activate phanotate-scripts
-bin/phanotate-translate -i sequences.fa -o proteins.fa
+bin/phanotate_translate -i sequences.fa -o proteins.fa
 ```

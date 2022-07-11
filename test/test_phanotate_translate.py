@@ -8,7 +8,7 @@ from Bio import SeqIO
 import extern
 
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
-path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin', 'phanotate-translate')
+path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin', 'phanotate_translate')
 
 class Tests(unittest.TestCase):
     maxDiff = None
